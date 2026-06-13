@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>電話</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif;
+    background: #000; min-height: 100vh;
+    display: flex; justify-content: center; align-items: center; color: white;
+  }
+  .phone {
+    width: 100%; max-width: 390px; min-height: 100vh;
+    background: #000; display: flex; flex-direction: column;
+    position: relative; overflow: hidden;
+  }
+  .screen { display: none; flex-direction: column; min-height: 100vh; }
+  .screen.active { display: flex; }
+
+  /* ===== START / MODE SELECT ===== */
+  .start-screen {
+    background: linear-gradient(180deg, #102030 0%, #060d15 100%);
+    padding: 50px 24px 30px; align-items: center;
+    overflow-y: auto;
+  }
+  .start-header { text-align: center; margin-bottom: 8px; }
+  .start-title { font-size: 24px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+  .start-sub { font-size: 14px; color: #8e9aaa; line-height: 1.5; }
+
+  .start-info {
+    width: 100%;
+    background: rgba(255,255,255,0.05);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-top: 18px;
+  }
+  .info-title { font-size: 14px; font-weight: 700; color: #fff; margin-bottom: 10px; }
+  .start-info p { font-size: 13px; color: #b8c2cc; line-height: 1.7; margin-bottom: 10px; }
+  .start-info p:last-child { margin-bottom: 0; }
+
+  .mode-prompt { width: 100%; font-size: 13px; color: #8e9aaa; margin: 20px 0 10px; text-align: center; }
+
+  /* Ad slot */
+  .ad-slot {
+    width: 100%; margin: 24px 0;
+    background: #1a1a1c;
+    border: 1px dashed #3a3a3c;
+    border-radius: 14px;
+    min-height: 180px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    color: #6a6a6c; font-size: 13px; text-align: center; padding: 16px;
+    gap: 8px;
+  }
+  .ad-slot .ad-label { font-size: 11px; letter-spacing: 1px; color: #5a5a5c; }
+
+  .mode-list { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+  .mode-btn {
+    width: 100%; padding: 20px; border-radius: 16px; border: none;
+    cursor: pointer; text-align: left; transition: transform 0.1s, filter 0.15s;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .mode-btn:active { transform: scale(0.98); }
+  .mode-btn.mode-a { background: linear-gradient(135deg, #34c759, #28a745); }
+  .mode-btn.mode-b { background: linear-gradient(135deg, #0a84ff, #0066cc); }
+  .mode-btn.mode-c { background: linear-gradient(135deg, #8e8e93, #636366); }
+  .mode-icon { font-size: 32px; }
+  .mode-text { display: flex; flex-direction: column; gap: 2px; }
+  .mode-name { font-size: 18px; font-weight: 700; color: #fff; }
+  .mode-desc { font-size: 12px; color: rgba(255,255,255,0.85); }
+
+  /* ===== COMMON ===== */
+  .status-bar { height: 50px; display: flex; align-items: center; justify-content: space-between; padding: 12px 20px 0; }
+  .status-time { font-size: 15px; font-weight: 700; color: #fff; }
+  .status-icons { display: flex; gap: 6px; align-items: center; font-size: 12px; color: #fff; }
+
+  .dialer-top { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px 0; }
+  .back-link { font-size: 14px; color: #0a84ff; background: none; border: none; cursor: pointer; padding: 4px 8px; }
+  .dialer-title { flex: 1; text-align: center; font-size: 17px; font-weight: 600; color: #fff; }
+  .dialer-title-spacer { width: 60px; }
+
+  .number-display { flex: 1; display: flex; align-items: flex-end; justify-content: center; padding: 0 40px 20px; position: relative; min-height: 80px; }
+  .number-text { font-size: 42px; font-weight: 300; letter-spacing: 4px; color: #fff; text-align: center; min-height: 52px; }
+  .delete-btn { position: absolute; right: 30px; bottom: 22px; background: none; border: none; color: #fff; font-size: 22px; cursor: pointer; padding: 8px; opacity: 0; transition: opacity 0.2s; }
+  .delete-btn.visible { opacity: 1; }
+
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); padding: 0 16px; }
+  .key { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 80px; cursor: pointer; user-select: none; border-radius: 50%; margin: 4px auto; width: 75px; transition: background 0.1s; }
+  .key:active { background: rgba(255,255,255,0.2); }
+  .key-num { font-size: 30px; font-weight: 300; color: #fff; line-height: 1; }
+  .key-letters { font-size: 9px; font-weight: 500; color: #aaa; letter-spacing: 1.5px; margin-top: 2px; min-height: 12px; }
+
+  .call-row { display: flex; align-items: center; justify-content: center; padding: 16px 16px 40px; }
+  .call-btn { width: 72px; height: 72px; border-radius: 50%; background: #34c759; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 28px; box-shadow: 0 4px 20px rgba(52,199,89,0.5); transition: transform 0.1s; }
+  .call-btn:active { transform: scale(0.93); }
+
+  .call-screen { background: linear-gradient(180deg, #1a2a3a 0%, #0d1a26 100%); padding: 60px 20px 40px; align-items: center; }
+  .call-label { font-size: 16px; color: #8e9aaa; margin-bottom: 10px; }
+  .call-number { font-size: 32px; font-weight: 300; color: #fff; letter-spacing: 2px; margin-bottom: 8px; }
+  .call-status { font-size: 16px; color: #8e9aaa; margin-bottom: 40px; }
+
+  .avatar-circle { width: 110px; height: 110px; border-radius: 50%; background: linear-gradient(135deg, #3a4a5a, #2a3a4a); display: flex; align-items: center; justify-content: center; font-size: 50px; margin-bottom: 30px; }
+  .avatar-circle.ringing { animation: ring-pulse 1.5s ease-out infinite; }
+  @keyframes ring-pulse { 0% { box-shadow: 0 0 0 0 rgba(52,199,89,0.5); } 70% { box-shadow: 0 0 0 28px rgba(52,199,89,0); } 100% { box-shadow: 0 0 0 0 rgba(52,199,89,0); } }
+
+  .spacer { flex: 1; }
+  .action-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; width: 100%; max-width: 320px; margin-bottom: 24px; }
+  .action-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+  .action-icon { width: 60px; height: 60px; border-radius: 50%; background: rgba(255,255,255,0.12); display: flex; align-items: center; justify-content: center; font-size: 22px; transition: background 0.15s; }
+  .action-icon.active-btn { background: rgba(255,255,255,0.85); }
+  .action-label { font-size: 12px; color: #8e9aaa; }
+
+  .end-btn { width: 72px; height: 72px; border-radius: 50%; background: #ff3b30; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 26px; box-shadow: 0 4px 20px rgba(255,59,48,0.5); transition: transform 0.1s; }
+  .end-btn:active { transform: scale(0.93); }
+
+  .vm-timer { font-size: 36px; font-weight: 200; color: #fff; letter-spacing: 2px; margin-bottom: 10px; }
+  .vm-wave { display: flex; align-items: center; gap: 3px; height: 40px; margin-bottom: 30px; }
+  .vm-bar { width: 4px; background: #34c759; border-radius: 2px; animation: wave 0.8s ease-in-out infinite alternate; }
+  @keyframes wave { from { height: 6px; opacity: 0.5; } to { height: 32px; opacity: 1; } }
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- ===== START / MODE SELECT ===== -->
+  <div class="screen active start-screen" id="scrStart">
+    <div class="start-header">
+      <div class="start-title">電話シミュレーター</div>
+      <div class="start-sub">電話をかけたふりができるアプリです</div>
+    </div>
+
+    <div class="start-info">
+      <div class="info-title">📖 使い方</div>
+      <p>ご家族へ電話したいと落ち着かないご利用者に、電話をかける体験をしていただくためのアプリです。実際には電話はつながりません。</p>
+      <p>① 下のボタンでモードを選びます<br>② 番号を入力して緑のボタンで発信<br>③ 呼び出し音が流れます<br>④ 終わったら赤いボタンで切ります</p>
+      <p>そのあと職員の方から「あとでかけ直しましょうね」とお声がけください。</p>
+    </div>
+
+    <!-- 広告枠：ここにGoogle AdSenseコードやスポンサーバナーを入れる -->
+    <div class="ad-slot" id="adSlot">
+      <div class="ad-label">— 広告スペース —</div>
+      <div>ここにスポンサー広告／<br>AdSenseバナーを表示</div>
+    </div>
+
+    <div class="mode-prompt">モードを選んでください</div>
+    <div class="mode-list">
+      <button class="mode-btn mode-a" onclick="selectMode('A')">
+        <span class="mode-icon">📞</span>
+        <span class="mode-text">
+          <span class="mode-name">留守番電話モード</span>
+          <span class="mode-desc">呼び出し音のあと留守番電話につながります</span>
+        </span>
+      </button>
+      <button class="mode-btn mode-b" onclick="selectMode('B')">
+        <span class="mode-icon">🔔</span>
+        <span class="mode-text">
+          <span class="mode-name">呼び出し音モード</span>
+          <span class="mode-desc">切るまで呼び出し音が鳴り続けます</span>
+        </span>
+      </button>
+      <button class="mode-btn mode-c" onclick="selectMode('C')">
+        <span class="mode-icon">📵</span>
+        <span class="mode-text">
+          <span class="mode-name">電源が切れていますモード</span>
+          <span class="mode-desc">呼び出し音のあと電源オフのアナウンスが流れます</span>
+        </span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== DIALER ===== -->
+  <div class="screen" id="scrDialer">
+    <div class="status-bar">
+      <span class="status-time" id="clock">9:41</span>
+      <div class="status-icons"><span>▐▐▐</span><span>WiFi</span><span>🔋</span></div>
+    </div>
+    <div class="dialer-top">
+      <button class="back-link" onclick="backToStart()">‹ モード選択</button>
+      <div class="dialer-title" id="dialerModeLabel">キーパッド</div>
+      <div class="dialer-title-spacer"></div>
+    </div>
+    <div class="number-display">
+      <div class="number-text" id="numDisplay"></div>
+      <button class="delete-btn" id="deleteBtn" onclick="deleteLast()">⌫</button>
+    </div>
+    <div class="keypad">
+      <div class="key" onclick="pressKey('1')"><span class="key-num">1</span><span class="key-letters"></span></div>
+      <div class="key" onclick="pressKey('2')"><span class="key-num">2</span><span class="key-letters">ABC</span></div>
+      <div class="key" onclick="pressKey('3')"><span class="key-num">3</span><span class="key-letters">DEF</span></div>
+      <div class="key" onclick="pressKey('4')"><span class="key-num">4</span><span class="key-letters">GHI</span></div>
+      <div class="key" onclick="pressKey('5')"><span class="key-num">5</span><span class="key-letters">JKL</span></div>
+      <div class="key" onclick="pressKey('6')"><span class="key-num">6</span><span class="key-letters">MNO</span></div>
+      <div class="key" onclick="pressKey('7')"><span class="key-num">7</span><span class="key-letters">PQRS</span></div>
+      <div class="key" onclick="pressKey('8')"><span class="key-num">8</span><span class="key-letters">TUV</span></div>
+      <div class="key" onclick="pressKey('9')"><span class="key-num">9</span><span class="key-letters">WXYZ</span></div>
+      <div class="key" onclick="pressKey('*')"><span class="key-num" style="font-size:26px">＊</span><span class="key-letters"></span></div>
+      <div class="key" onclick="pressKey('0')"><span class="key-num">0</span><span class="key-letters">＋</span></div>
+      <div class="key" onclick="pressKey('#')"><span class="key-num" style="font-size:24px">#</span><span class="key-letters"></span></div>
+    </div>
+    <div class="call-row">
+      <button class="call-btn" onclick="startCall()">📞</button>
+    </div>
+  </div>
+
+  <!-- ===== CALLING ===== -->
+  <div class="screen call-screen" id="scrCalling">
+    <div class="call-label">発信中...</div>
+    <div class="call-number" id="callingNum"></div>
+    <div class="call-status" id="callingStatus">呼び出し中</div>
+    <div class="avatar-circle ringing" id="avatar">👤</div>
+    <div class="spacer"></div>
+    <div class="action-grid">
+      <div class="action-btn" onclick="toggleMute()">
+        <div class="action-icon" id="icoMute">🔇</div>
+        <div class="action-label" id="lblMute">ミュート</div>
+      </div>
+      <div class="action-btn"><div class="action-icon">⌨️</div><div class="action-label">キーパッド</div></div>
+      <div class="action-btn" onclick="toggleSpeaker()">
+        <div class="action-icon" id="icoSpk">🔊</div>
+        <div class="action-label" id="lblSpk">スピーカー</div>
+      </div>
+    </div>
+    <button class="end-btn" onclick="endCall()">📵</button>
+  </div>
+
+  <!-- ===== VOICEMAIL ===== -->
+  <div class="screen call-screen" id="scrVoicemail">
+    <div class="call-label">留守番電話サービス</div>
+    <div class="call-number" id="vmNum"></div>
+    <div class="call-status" id="vmStatus">メッセージを再生中...</div>
+    <div class="avatar-circle">👤</div>
+    <div class="vm-timer" id="vmTimer">0:00</div>
+    <div class="vm-wave" id="vmWave"></div>
+    <div class="spacer"></div>
+    <div class="action-grid">
+      <div class="action-btn" onclick="toggleMuteVm()">
+        <div class="action-icon" id="icoMuteVm">🔇</div>
+        <div class="action-label" id="lblMuteVm">ミュート</div>
+      </div>
+      <div class="action-btn"><div class="action-icon">⌨️</div><div class="action-label">キーパッド</div></div>
+      <div class="action-btn" onclick="toggleSpeakerVm()">
+        <div class="action-icon" id="icoSpkVm">🔊</div>
+        <div class="action-label" id="lblSpkVm">スピーカー</div>
+      </div>
+    </div>
+    <button class="end-btn" onclick="endCall()">📵</button>
+  </div>
+
+</div>
+<script>
+  // Clock
+  function updateClock() {
+    const n = new Date();
+    document.getElementById('clock').textContent =
+      n.getHours().toString().padStart(2,'0')+':'+n.getMinutes().toString().padStart(2,'0');
+  }
+  updateClock(); setInterval(updateClock, 10000);
+
+  // Waveform
+  const vmWave = document.getElementById('vmWave');
+  for (let i = 0; i < 22; i++) {
+    const b = document.createElement('div');
+    b.className = 'vm-bar';
+    b.style.animationDelay = (Math.random()*0.8)+'s';
+    b.style.animationDuration = (0.5+Math.random()*0.6)+'s';
+    vmWave.appendChild(b);
+  }
+  const poWave = document.getElementById('poWave');
+  if (poWave) for (let i = 0; i < 22; i++) {
+    const b = document.createElement('div');
+    b.className = 'vm-bar';
+    b.style.animationDelay = (Math.random()*0.8)+'s';
+    b.style.animationDuration = (0.5+Math.random()*0.6)+'s';
+    poWave.appendChild(b);
+  }
+
+  // State
+  let mode = 'A';            // 'A' = voicemail, 'B' = ring forever
+  let number = '';
+  let audioCtx = null;
+  let ringOscs = [];
+  let ringLoopTimeout = null;
+  let ringDoneTimeout = null;
+  let vmInterval = null;
+  let vmSeconds = 0;
+  let isMuted = false;
+  let isSpeaker = false;
+  let vmStarted = false;
+
+  function getCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+  }
+  function showOnly(id) {
+    ['scrStart','scrDialer','scrCalling','scrVoicemail'].forEach(s =>
+      document.getElementById(s).classList.toggle('active', s === id));
+  }
+
+  // Mode select
+  function selectMode(m) {
+    mode = m;
+    number = ''; renderNumber();
+    showOnly('scrDialer');
+  }
+  function backToStart() {
+    endCall();
+    showOnly('scrStart');
+  }
+
+  // Keypad
+  function pressKey(k) { if (number.length >= 13) return; number += k; renderNumber(); playDtmf(k); }
+  function deleteLast() { number = number.slice(0,-1); renderNumber(); }
+  function renderNumber() {
+    document.getElementById('numDisplay').textContent = fmt(number);
+    document.getElementById('deleteBtn').classList.toggle('visible', number.length > 0);
+  }
+  function fmt(n) {
+    const d = n.replace(/\D/g,'');
+    if (d.length <= 3) return d;
+    if (d.length <= 7) return d.slice(0,3)+'-'+d.slice(3);
+    return d.slice(0,3)+'-'+d.slice(3,7)+'-'+d.slice(7,12);
+  }
+
+  // DTMF
+  function playDtmf(k) {
+    const m={'1':[697,1209],'2':[697,1336],'3':[697,1477],'4':[770,1209],'5':[770,1336],'6':[770,1477],'7':[852,1209],'8':[852,1336],'9':[852,1477],'*':[941,1209],'0':[941,1336],'#':[941,1477]};
+    const ac=getCtx(), fs=m[k]||[440,880];
+    fs.forEach(f=>{
+      const o=ac.createOscillator(), g=ac.createGain();
+      o.connect(g); g.connect(ac.destination);
+      o.frequency.value=f;
+      g.gain.setValueAtTime(0.15,ac.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,ac.currentTime+0.12);
+      o.start(); o.stop(ac.currentTime+0.13);
+    });
+  }
+
+  // ===== Ring tone =====
+  const RING_CYCLE_MS = 3000;
+
+  // Schedule N cycles of ring starting now
+  function scheduleRingChunk(cycles) {
+    const ac = getCtx();
+    const vol = isMuted ? 0 : (isSpeaker ? 0.5 : 0.25);
+    const g = ac.createGain();
+    g.gain.value = vol;
+    g.connect(ac.destination);
+    for (let c = 0; c < cycles; c++) {
+      const start = ac.currentTime + c * (RING_CYCLE_MS/1000);
+      [425, 400].forEach(freq => {
+        const osc = ac.createOscillator();
+        osc.type = 'sine'; osc.frequency.value = freq;
+        osc.connect(g);
+        g.gain.setValueAtTime(0, start);
+        g.gain.linearRampToValueAtTime(vol, start + 0.05);
+        g.gain.setValueAtTime(vol, start + 0.95);
+        g.gain.linearRampToValueAtTime(0, start + 1.0);
+        osc.start(start); osc.stop(start + 1.05);
+        ringOscs.push(osc);
+      });
+    }
+  }
+
+  // Mode A: ring 3 cycles → voicemail
+  function ringThenVoicemail() {
+    const CYCLES = 3;
+    scheduleRingChunk(CYCLES);
+    ringDoneTimeout = setTimeout(() => {
+      stopRing();
+      switchToVoicemail();
+    }, CYCLES * RING_CYCLE_MS + 200);
+  }
+
+  // Mode C: ring 3 cycles → power off announcement
+  function ringThenPowerOff() {
+    const CYCLES = 3;
+    scheduleRingChunk(CYCLES);
+    ringDoneTimeout = setTimeout(() => {
+      stopRing();
+      switchToPowerOff();
+    }, CYCLES * RING_CYCLE_MS + 200);
+  }
+
+  // Mode B: ring forever (re-schedule chunks until stopped)
+  function ringForever() {
+    const CHUNK = 4; // schedule 4 cycles at a time
+    scheduleRingChunk(CHUNK);
+    ringLoopTimeout = setTimeout(ringForever, CHUNK * RING_CYCLE_MS);
+  }
+
+  function stopRing() {
+    if (ringLoopTimeout) { clearTimeout(ringLoopTimeout); ringLoopTimeout = null; }
+    if (ringDoneTimeout) { clearTimeout(ringDoneTimeout); ringDoneTimeout = null; }
+    ringOscs.forEach(o => { try { o.stop(); } catch(e){} });
+    ringOscs = [];
+  }
+
+  // Start call
+  function startCall() {
+    if (number.length === 0) return;
+    const ac = getCtx();
+    if (ac.state === 'suspended') ac.resume();
+    if (window.speechSynthesis) { const w = new SpeechSynthesisUtterance(''); w.volume = 0; window.speechSynthesis.speak(w); }
+
+    isMuted = false; isSpeaker = false; vmStarted = false; poStarted = false;
+    updateMuteUI(); updateSpeakerUI();
+    document.getElementById('callingStatus').textContent = '呼び出し中';
+    document.getElementById('callingNum').textContent = fmt(number);
+    document.getElementById('vmNum').textContent = fmt(number);
+    document.getElementById('avatar').classList.add('ringing');
+    showOnly('scrCalling');
+
+    if (mode === 'A') ringThenVoicemail();
+    else if (mode === 'C') ringThenPowerOff();
+    else ringForever();
+  }
+
+  // Voicemail (mode A only)
+  function switchToVoicemail() {
+    document.getElementById('avatar').classList.remove('ringing');
+    vmSeconds = 0; vmStarted = false;
+    document.getElementById('vmStatus').textContent = 'メッセージを再生中...';
+    document.getElementById('vmTimer').textContent = '0:00';
+    document.getElementById('icoMuteVm').classList.toggle('active-btn', isMuted);
+    document.getElementById('lblMuteVm').textContent = isMuted ? 'ミュート中' : 'ミュート';
+    document.getElementById('icoSpkVm').classList.toggle('active-btn', isSpeaker);
+    document.getElementById('lblSpkVm').textContent = isSpeaker ? 'スピーカー中' : 'スピーカー';
+    showOnly('scrVoicemail');
+
+    vmInterval = setInterval(() => {
+      vmSeconds++;
+      const m = Math.floor(vmSeconds/60), s = vmSeconds%60;
+      document.getElementById('vmTimer').textContent = m+':'+s.toString().padStart(2,'0');
+    }, 1000);
+
+    setTimeout(() => { vmStarted = true; speakVoicemail(); }, 400);
+  }
+
+  function speakVoicemail() {
+    if (!vmStarted) return;
+    if (isMuted || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(
+      'お電話ありがとうございます。ただいま電話に出ることができません。ピーという発信音のあとに、お名前とご用件をどうぞ。'
+    );
+    utter.lang = 'ja-JP'; utter.rate = 0.82; utter.pitch = 1.05;
+    utter.volume = isSpeaker ? 1.0 : 0.6;
+    const voices = window.speechSynthesis.getVoices();
+    const jaVoice = voices.find(v => v.lang.startsWith('ja') && /female|kyoko|o-ren|haruka/i.test(v.name)) || voices.find(v => v.lang.startsWith('ja'));
+    if (jaVoice) utter.voice = jaVoice;
+    utter.onend = () => {
+      if (!vmStarted) return;
+      setTimeout(() => { document.getElementById('vmStatus').textContent = '録音中...'; playBeep(); }, 400);
+    };
+    window.speechSynthesis.speak(utter);
+  }
+
+  function playBeep() {
+    if (isMuted) return;
+    const ac = getCtx(), o = ac.createOscillator(), g = ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    o.type = 'sine'; o.frequency.value = 880;
+    const vol = isSpeaker ? 0.5 : 0.25;
+    g.gain.setValueAtTime(0, ac.currentTime);
+    g.gain.linearRampToValueAtTime(vol, ac.currentTime+0.04);
+    g.gain.setValueAtTime(vol, ac.currentTime+0.85);
+    g.gain.linearRampToValueAtTime(0, ac.currentTime+0.95);
+    o.start(); o.stop(ac.currentTime+1.0);
+  }
+
+  // ===== Power off announcement (mode C) =====
+  let poStarted = false;
+  function switchToPowerOff() {
+    // Stay on the calling screen, just stop the ring animation and play announcement
+    document.getElementById('avatar').classList.remove('ringing');
+    document.getElementById('callingStatus').textContent = '接続できません';
+    poStarted = true;
+    speakPowerOff();
+  }
+
+  function speakPowerOff() {
+    if (!poStarted) return;
+    if (isMuted || !window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(
+      'おかけになった電話は、電波の届かない場所にあるか、電源が入っていないためかかりません。'
+    );
+    utter.lang = 'ja-JP'; utter.rate = 0.82; utter.pitch = 1.05;
+    utter.volume = isSpeaker ? 1.0 : 0.6;
+    const voices = window.speechSynthesis.getVoices();
+    const jaVoice = voices.find(v => v.lang.startsWith('ja') && /female|kyoko|o-ren|haruka/i.test(v.name)) || voices.find(v => v.lang.startsWith('ja'));
+    if (jaVoice) utter.voice = jaVoice;
+    utter.onend = () => {
+      if (!poStarted) return;
+      // Repeat the announcement like a real carrier message, until user hangs up
+      setTimeout(() => { if (poStarted) speakPowerOff(); }, 2500);
+    };
+    window.speechSynthesis.speak(utter);
+  }
+  // End call
+  function endCall() {
+    stopRing();
+    clearInterval(vmInterval);
+    vmStarted = false;
+    poStarted = false;
+    window.speechSynthesis && window.speechSynthesis.cancel();
+    showOnly('scrDialer');
+    number = ''; renderNumber();
+  }
+
+  // Mute / Speaker
+  function toggleMute() {
+    isMuted = !isMuted;
+    updateMuteUI();
+    if (isMuted) window.speechSynthesis && window.speechSynthesis.cancel();
+  }
+  function updateMuteUI() {
+    document.getElementById('icoMute').classList.toggle('active-btn', isMuted);
+    document.getElementById('lblMute').textContent = isMuted ? 'ミュート中' : 'ミュート';
+  }
+  function toggleMuteVm() {
+    isMuted = !isMuted;
+    document.getElementById('icoMuteVm').classList.toggle('active-btn', isMuted);
+    document.getElementById('lblMuteVm').textContent = isMuted ? 'ミュート中' : 'ミュート';
+    if (isMuted) window.speechSynthesis && window.speechSynthesis.cancel();
+  }
+  function toggleSpeaker() { isSpeaker = !isSpeaker; updateSpeakerUI(); }
+  function updateSpeakerUI() {
+    document.getElementById('icoSpk').classList.toggle('active-btn', isSpeaker);
+    document.getElementById('lblSpk').textContent = isSpeaker ? 'スピーカー中' : 'スピーカー';
+  }
+  function toggleSpeakerVm() {
+    isSpeaker = !isSpeaker;
+    document.getElementById('icoSpkVm').classList.toggle('active-btn', isSpeaker);
+    document.getElementById('lblSpkVm').textContent = isSpeaker ? 'スピーカー中' : 'スピーカー';
+  }
+
+  // Preload voices
+  if (window.speechSynthesis) {
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+  }
+</script>
+</body>
+</html>
