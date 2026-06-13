@@ -42,20 +42,15 @@
 
   .mode-prompt { width: 100%; font-size: 13px; color: #8e9aaa; margin: 20px 0 10px; text-align: center; }
 
-  /* Ad slot */
-  .ad-slot {
-    width: 100%; margin: 24px 0;
-    background: #1a1a1c;
-    border: 1px dashed #3a3a3c;
-    border-radius: 14px;
-    min-height: 180px;
-    display: flex; flex-direction: column;
-    align-items: center; justify-content: center;
-    color: #6a6a6c; font-size: 13px; text-align: center; padding: 16px;
-    gap: 8px;
-  }
-  .ad-slot .ad-label { font-size: 11px; letter-spacing: 1px; color: #5a5a5c; }
+  /* Ad control */
+  #adWrapper { width: 100%; margin: 20px 0; }
 
+  /* Hide ninja AdMax fixed bottom ad when not on start screen */
+  body.in-call iframe,
+  body.in-call [id*="admax"],
+  body.in-call [class*="admax"] { display: none !important; }
+
+  /* Fix mode button layout */
   .mode-list { width: 100%; display: flex; flex-direction: column; gap: 14px; }
   .mode-btn {
     width: 100%; padding: 20px; border-radius: 16px; border: none;
@@ -138,10 +133,10 @@
       <p>そのあと職員の方から「あとでかけ直しましょうね」とお声がけください。</p>
     </div>
 
-    <!-- 広告枠：ここにGoogle AdSenseコードやスポンサーバナーを入れる -->
-    <!-- admax -->
-<script src="https://adm.shinobi.jp/s/d93c952020fbd71b15ac68b2023f5d0c"></script>
-<!-- admax -->
+    <div id="adWrapper">
+      <!-- admax -->
+      <script src="https://adm.shinobi.jp/s/d93c952020fbd71b15ac68b2023f5d0c"></script>
+      <!-- admax -->
     </div>
 
     <div class="mode-prompt">モードを選んでください</div>
@@ -296,6 +291,11 @@
   function showOnly(id) {
     ['scrStart','scrDialer','scrCalling','scrVoicemail'].forEach(s =>
       document.getElementById(s).classList.toggle('active', s === id));
+    // Show ad only on start screen, hide everywhere else
+    const onStart = (id === 'scrStart');
+    const adWrapper = document.getElementById('adWrapper');
+    if (adWrapper) adWrapper.style.display = onStart ? '' : 'none';
+    document.body.classList.toggle('in-call', !onStart);
   }
 
   // Mode select
