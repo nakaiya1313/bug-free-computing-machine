@@ -42,15 +42,16 @@
 
   .mode-prompt { width: 100%; font-size: 13px; color: #8e9aaa; margin: 20px 0 10px; text-align: center; }
 
-  /* Ad control */
+  /* ダイヤル画面：広告が上に残った場合でもボタンが隠れないよう余白 */
+  #scrDialer { padding-top: 0; }
   #adWrapper { width: 100%; margin: 20px 0; }
 
-  /* Hide ninja AdMax fixed bottom ad when not on start screen */
-  body.in-call iframe,
-  body.in-call [id*="admax"],
+  /* スタート画面以外では広告を完全に非表示 */
+  body.in-call #adWrapper { display: none !important; }
+  body.in-call iframe { display: none !important; position: static !important; }
+  body.in-call [id*="admax"] { display: none !important; }
   body.in-call [class*="admax"] { display: none !important; }
-
-  /* Fix mode button layout */
+  body.in-call ins { display: none !important; }
   .mode-list { width: 100%; display: flex; flex-direction: column; gap: 14px; }
   .mode-btn {
     width: 100%; padding: 20px; border-radius: 16px; border: none;
@@ -291,11 +292,24 @@
   function showOnly(id) {
     ['scrStart','scrDialer','scrCalling','scrVoicemail'].forEach(s =>
       document.getElementById(s).classList.toggle('active', s === id));
-    // Show ad only on start screen, hide everywhere else
     const onStart = (id === 'scrStart');
     const adWrapper = document.getElementById('adWrapper');
     if (adWrapper) adWrapper.style.display = onStart ? '' : 'none';
     document.body.classList.toggle('in-call', !onStart);
+
+    // 忍者AdMaxの固定広告をJSで強制削除
+    if (!onStart) {
+      document.querySelectorAll('iframe').forEach(el => {
+        if (el.src && el.src.includes('shinobi')) el.style.display = 'none';
+      });
+      // position:fixedの要素を非表示
+      document.querySelectorAll('*').forEach(el => {
+        const style = window.getComputedStyle(el);
+        if (style.position === 'fixed' && el.id !== 'scrStart') {
+          el.style.setProperty('display', 'none', 'important');
+        }
+      });
+    }
   }
 
   // Mode select
